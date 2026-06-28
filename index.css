@@ -1,0 +1,123 @@
+import React, { useEffect } from 'react';
+import { AppProvider, useAppStore } from './store';
+import { Header, BottomNav } from './components/Layout';
+import { HomeView } from './views/HomeView';
+import { AppDetailsView } from './views/AppDetailsView';
+import { SearchView } from './views/SearchView';
+import { SettingsView } from './views/SettingsView';
+import { LanguageView } from './views/LanguageView';
+import { FavoritesView } from './views/FavoritesView';
+import { DownloadsView } from './views/DownloadsView';
+import { InfoView } from './views/InfoView';
+import { OnboardingOverlay } from './components/OnboardingOverlay';
+import { ExitConfirmOverlay } from './components/ExitConfirmOverlay';
+import { InstantGames } from './components/InstantGames';
+import { AnimatePresence, motion } from 'motion/react';
+import { Star, Check, X, Info } from 'lucide-react';
+import { translations } from './translations';
+
+const ToastNotification = () => {
+  const { toast, hideToast, setCurrentView, language } = useAppStore();
+  const t = translations[language];
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        hideToast();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast, hideToast]);
+
+  return (
+    <AnimatePresence>
+      {toast && (
+        <motion.div
+          key="toast"
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="fixed bottom-24 left-4 right-4 z-[100] flex justify-center pointer-events-none"
+        >
+          <div className="bg-[#1C1C1E] text-white px-4 py-3 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.5)] flex items-center justify-between gap-3 border border-white/10 pointer-events-auto max-w-[340px] w-full backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              {toast.type === 'added' ? (
+                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                  <Check className="w-4 h-4 text-green-500" strokeWidth={3} />
+                </div>
+              ) : toast.type === 'removed' ? (
+                <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                  <X className="w-4 h-4 text-red-500" strokeWidth={3} />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <Check className="w-4 h-4 text-blue-500" strokeWidth={3} />
+                </div>
+              )}
+              <span className="text-sm font-semibold tracking-wide">{toast.message}</span>
+            </div>
+            {toast.type === 'added' && (
+              <button
+                onClick={() => {
+                  setCurrentView('favorites');
+                  hideToast();
+                }}
+                className="text-xs font-bold text-[#0A84FF] active:opacity-70 transition-opacity whitespace-nowrap bg-white/10 px-3 py-1.5 rounded-full shrink-0"
+              >
+                {t.viewFavorites}
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const ViewContainer = () => {
+  const { currentView, currentCategory } = useAppStore();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentView, currentCategory]);
+
+  const isInfoView = ['about', 'privacy', 'terms'].includes(currentView);
+
+  return (
+    <div className="min-h-screen bg-[#FFFFFF] dark:bg-[#090909] text-gray-900 dark:text-white relative">
+      {!isInfoView && <Header />}
+      
+      <main className="relative z-10 min-h-screen">
+        <AnimatePresence mode="wait">
+          {currentView === 'home' && <HomeView key="home" />}
+          {currentView === 'games' && <HomeView key="games" filter="الألعاب" />}
+          {currentView === 'apps' && <HomeView key="apps" filter="التطبيقات" />}
+          {currentView === 'modded' && <HomeView key="modded" filter="مهكرة" />}
+          {currentView === 'search' && <SearchView key="search" />}
+          {currentView === 'favorites' && <FavoritesView key="favorites" />}
+          {currentView === 'downloads' && <DownloadsView key="downloads" />}
+          {currentView === 'settings' && <SettingsView key="settings" />}
+          {currentView === 'language' && <LanguageView key="language" />}
+          {currentView === 'category' && <HomeView key="category" filter={currentCategory || ''} />}
+          {currentView === 'details' && <AppDetailsView key="details" />}
+          {isInfoView && <InfoView key={currentView} />}
+        </AnimatePresence>
+      </main>
+
+      {!isInfoView && <BottomNav />}
+      <ToastNotification />
+      <OnboardingOverlay />
+      <ExitConfirmOverlay />
+      <InstantGames />
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <AppProvider>
+      <ViewContainer />
+    </AppProvider>
+  );
+}

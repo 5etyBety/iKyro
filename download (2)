@@ -1,0 +1,126 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { RotateCcw } from 'lucide-react';
+import { useAppStore } from '../../store';
+import { translations } from '../../translations';
+import { playSound } from '../../utils/audio';
+import { FLUENT_EMOJIS } from '../../utils/emoji';
+
+const WINNING_COMBOS = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8],
+  [0, 3, 6], [1, 4, 7], [2, 5, 8],
+  [0, 4, 8], [2, 4, 6]
+];
+
+export default function TicTacToe() {
+  const { language } = useAppStore();
+  const t = translations[language];
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [isXNext, setIsXNext] = useState(true);
+  const [winner, setWinner] = useState<string | null>(null);
+  const [winningLine, setWinningLine] = useState<number[] | null>(null);
+
+  const checkWinner = (squares: any[]) => {
+    for (let i = 0; i < WINNING_COMBOS.length; i++) {
+      const [a, b, c] = WINNING_COMBOS[i];
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return { winner: squares[a], line: [a, b, c] };
+      }
+    }
+    return squares.includes(null) ? null : { winner: 'draw', line: null };
+  };
+
+  const handleCLick = (index: number) => {
+    if (board[index] || winner || !isXNext) return;
+    playSound('pop');
+    const newBoard = [...board];
+    newBoard[index] = 'X';
+    setBoard(newBoard);
+    setIsXNext(false);
+    
+    const result = checkWinner(newBoard);
+    if (result) {
+      setWinner(result.winner);
+      setWinningLine(result.line);
+      playSound(result.winner === 'X' ? 'win' : result.winner === 'draw' ? 'lose' : 'lose');
+    }
+  };
+
+  useEffect(() => {
+    if (!isXNext && !winner) {
+      const timer = setTimeout(() => {
+        const available = board.map((v, i) => v === null ? i : null).filter(v => v !== null) as number[];
+        if (available.length > 0) {
+          playSound('click');
+          const randomIndex = available[Math.floor(Math.random() * available.length)];
+          const newBoard = [...board];
+          newBoard[randomIndex] = 'O';
+          setBoard(newBoard);
+          setIsXNext(true);
+          
+          const result = checkWinner(newBoard);
+          if (result) {
+            setWinner(result.winner);
+            setWinningLine(result.line);
+            playSound(result.winner === 'X' ? 'win' : result.winner === 'draw' ? 'lose' : 'lose');
+          }
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isXNext, board, winner]);
+
+  const reset = () => {
+    playSound('click');
+    setBoard(Array(9).fill(null));
+    setIsXNext(true);
+    setWinner(null);
+    setWinningLine(null);
+  };
+
+  return (
+    <div className="flex flex-col items-center w-full max-w-[280px]">
+      <div className="grid grid-cols-3 gap-3 w-full mb-8">
+        {board.map((cell, i) => {
+          const isWinningCell = winningLine?.includes(i);
+          return (
+            <motion.button
+              key={i}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => handleCLick(i)}
+              className={`w-full aspect-square rounded-2xl flex items-center justify-center text-5xl font-black shadow-sm transition-colors ${
+                isWinningCell ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-white/5'
+              }`}
+            >
+              {cell === 'X' && (
+                <motion.span initial={{scale:0, rotate: -45}} animate={{scale:1, rotate: 0}} className="flex items-center justify-center">
+                  <img src={FLUENT_EMOJIS.cross} alt="X" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+                </motion.span>
+              )}
+              {cell === 'O' && (
+                <motion.span initial={{scale:0, rotate: 45}} animate={{scale:1, rotate: 0}} className="flex items-center justify-center">
+                  <img src={FLUENT_EMOJIS.circle} alt="O" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+                </motion.span>
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+      
+      <div className="h-12 mb-4 flex items-center justify-center">
+        {winner && (
+          <motion.div initial={{opacity:0, scale: 0.5}} animate={{opacity:1, scale: 1}} className="text-center px-6 py-2 bg-gray-100 dark:bg-white/10 rounded-full">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white">
+              {winner === 'draw' ? t.draw : winner === 'X' ? t.youWin : t.youLose}
+            </h3>
+          </motion.div>
+        )}
+      </div>
+
+      <button onClick={reset} className="flex items-center gap-2 px-8 py-4 bg-ikyro-blue text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-blue-500/30">
+        <RotateCcw className="w-5 h-5" />
+        {t.playNow}
+      </button>
+    </div>
+  );
+}
